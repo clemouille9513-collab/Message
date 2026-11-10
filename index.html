@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<title>Bulle</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{--bg:#0f1115;--card:#1a1d24;--card2:#232833;--line:#2a2f3a;--txt:#eef0f4;--mut:#8b93a3;--acc:#6c8cff;--me:#3b5bdb}
+*{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--bg);color:var(--txt);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input,textarea{font:inherit;color:var(--txt)}
+.hidden{display:none!important}
+.screen{min-height:100dvh;display:flex;flex-direction:column;justify-content:center;padding:24px;max-width:420px;margin:0 auto;gap:12px}
+.screen h1{font-size:34px}
+.screen p{color:var(--mut)}
+.screen input{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;width:100%}
+.btn{background:var(--acc);color:#fff;border-radius:12px;padding:13px 16px;font-weight:600}
+.btn.alt{background:var(--card2)}
+.err{color:#ff7b7b;min-height:1.4em;font-size:14px}
+code{background:var(--card2);padding:1px 6px;border-radius:6px;font-size:13px}
+#app{height:100dvh;display:flex;flex-direction:column}
+.view{flex:1;min-height:0;display:flex;flex-direction:column}
+.bar{display:flex;align-items:center;gap:10px;padding:12px 14px;padding-top:calc(12px + env(safe-area-inset-top));background:var(--card);border-bottom:1px solid var(--line)}
+.bar h2{font-size:20px;flex:1}
+.ib{width:40px;height:40px;border-radius:50%;font-size:20px;display:grid;place-items:center;background:var(--card2)}
+#chatList,#mapPanel{flex:1;overflow-y:auto}
+.item{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer}
+.item:active{background:var(--card)}
+.av{width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#6c8cff,#3b5bdb);display:grid;place-items:center;font-weight:700;flex:none}
+.mid{flex:1;min-width:0;display:flex;flex-direction:column}
+.mid .last{color:var(--mut);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item small{color:var(--mut);font-size:12px}
+.empty{padding:40px 24px;text-align:center;color:var(--mut)}
+#fab{position:absolute;right:18px;bottom:calc(78px + env(safe-area-inset-bottom));width:56px;height:56px;border-radius:50%;background:var(--acc);font-size:28px;color:#fff;box-shadow:0 6px 18px #0008}
+#msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:6px}
+.older{align-self:center;background:var(--card2);color:var(--mut);padding:6px 14px;border-radius:14px;font-size:13px;margin-bottom:6px}
+.msg{max-width:80%;padding:8px 12px;border-radius:16px;word-wrap:break-word;overflow-wrap:anywhere;white-space:pre-wrap;display:flex;flex-direction:column;gap:4px}
+.msg.me{align-self:flex-end;background:var(--me);border-bottom-right-radius:4px}
+.msg.them{align-self:flex-start;background:var(--card2);border-bottom-left-radius:4px}
+.msg .time{font-size:11px;color:#ffffffa0;align-self:flex-end}
+.thumb{max-width:100%;width:230px;border-radius:10px;cursor:pointer;display:block}
+.player{max-width:100%;width:260px;border-radius:10px}
+.vid,.locl{background:#0004;border-radius:10px;padding:10px 12px;text-align:left;color:#fff;text-decoration:none;display:block}
+#composer{display:flex;align-items:flex-end;gap:6px;padding:8px;padding-bottom:calc(8px + env(safe-area-inset-bottom));background:var(--card);border-top:1px solid var(--line)}
+#msgInput{flex:1;background:var(--card2);border:0;border-radius:20px;padding:10px 14px;resize:none;max-height:120px;outline:none}
+#emojiPanel{background:var(--card);border-top:1px solid var(--line);height:240px;display:flex;flex-direction:column}
+#emojiTabs{display:flex;border-bottom:1px solid var(--line)}
+#emojiTabs button{flex:1;padding:8px;font-size:20px}
+#emojiTabs button.on{background:var(--card2)}
+#emojiGrid{flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(8,1fr);padding:6px;gap:2px;align-content:start}
+#emojiGrid button{font-size:26px;padding:4px;border-radius:8px}
+#emojiGrid button:active{background:var(--card2)}
+#nav{display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+#nav button{flex:1;padding:12px;color:var(--mut);font-size:14px}
+#nav button.on{color:var(--acc);font-weight:600}
+#map{flex:1;min-height:200px;background:#222}
+#mapPanel{flex:none;max-height:46%}
+.sec{padding:10px 14px;color:var(--mut);font-size:13px;text-transform:uppercase;letter-spacing:.04em}
+.row{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.row .mid b{font-weight:600}
+.row small{color:var(--mut)}
+.sw{width:46px;height:26px;accent-color:var(--acc)}
+.pin{background:transparent;border:0}
+.pin span{display:grid;place-items:center;width:34px;height:34px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:var(--acc);color:#fff;font-weight:700;border:2px solid #fff}
+.pin span i{transform:rotate(45deg);font-style:normal}
+.pin.me span{background:#2fbf71}
+#lightbox{position:fixed;inset:0;background:#000d;display:grid;place-items:center;z-index:2000}
+#lightbox img{max-width:96vw;max-height:92vh}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#000c;color:#fff;padding:10px 16px;border-radius:20px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:3000;max-width:90vw;text-align:center}
+#toast.on{opacity:1}
+</style>
+</head>
+<body>
+
+<div id="setup" class="screen hidden">
+  <h1>🫧 Bulle</h1>
+  <p>L'appli n'est pas encore reliée à Firebase.</p>
+  <p>Ouvre <code>index.html</code>, cherche <code>firebaseConfig</code> tout en haut du script et remplace les valeurs par celles de ton projet Firebase (voir LISEZMOI.md).</p>
+</div>
+
+<div id="auth" class="screen hidden">
+  <h1>🫧 Bulle</h1>
+  <p>Messages privés, photos, vidéos et position.</p>
+  <input id="pseudo" placeholder="Pseudo (ex : clement)" autocapitalize="none" autocomplete="username" autocorrect="off">
+  <input id="pass" type="password" placeholder="Mot de passe (6 caractères min.)" autocomplete="current-password">
+  <div id="authErr" class="err"></div>
+  <button id="btnLogin" class="btn">Se connecter</button>
+  <button id="btnRegister" class="btn alt">Créer un compte</button>
+</div>
+
+<div id="app" class="hidden">
+  <section id="viewList" class="view">
+    <div class="bar"><h2>Discussions</h2><button id="btnLogout" class="ib" title="Déconnexion">⎋</button></div>
+    <div id="chatList"></div>
+    <button id="fab" title="Nouvelle discussion">＋</button>
+  </section>
+
+  <section id="viewChat" class="view hidden">
+    <div class="bar">
+      <button id="backBtn" class="ib">←</button>
+      <h2 id="chatName"></h2>
+      <button id="toMap" class="ib" title="Voir la carte">🗺️</button>
+    </div>
+    <div id="msgs"></div>
+    <div id="emojiPanel" class="hidden"><div id="emojiTabs"></div><div id="emojiGrid"></div></div>
+    <div id="composer">
+      <button id="btnEmoji" class="ib">😊</button>
+      <button id="btnAttach" class="ib" title="Photo / vidéo">📎</button>
+      <button id="btnLoc" class="ib" title="Envoyer ma position">📍</button>
+      <textarea id="msgInput" rows="1" placeholder="Message" maxlength="4000"></textarea>
+      <button id="btnSend" class="ib" style="background:var(--acc)">➤</button>
+      <input id="fileInput" type="file" accept="image/*,video/*" class="hidden">
+    </div>
+  </section>
+
+  <section id="viewMap" class="view hidden">
+    <div class="bar"><h2>Carte</h2><button id="fitBtn" class="ib" title="Tout voir">⌖</button></div>
+    <div id="map"></div>
+    <div id="mapPanel"></div>
+  </section>
+
+  <nav id="nav">
+    <button id="navList" class="on">💬 Discussions</button>
+    <button id="navMap">🗺️ Carte</button>
+  </nav>
+</div>
+
+<div id="lightbox" class="hidden"></div>
+<div id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { getDatabase, ref, set, get, push, onValue, onChildAdded, update, remove, query, limitToLast, endBefore, orderByKey, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
+
+/* ====== À REMPLIR : copie ici la config de ton projet Firebase ====== */
+const firebaseConfig = {
+  apiKey: "COLLE_ICI",
+  authDomain: "COLLE_ICI",
+  databaseURL: "COLLE_ICI",
+  projectId: "COLLE_ICI",
+  appId: "COLLE_ICI"
+};
+/* =================================================================== */
+
+const $ = s => document.querySelector(s);
+const show = (s, on = true) => $(s).classList.toggle('hidden', !on);
+const el = (tag, props = {}, ...kids) => { const e = document.createElement(tag); Object.assign(e, props); kids.flat().forEach(k => e.append(k)); return e; };
+function toast(t) { const e = $('#toast'); e.textContent = t; e.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('on'), 2800); }
+const hm = d => d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+function fmtTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts), n = new Date();
+  return d.toDateString() === n.toDateString() ? hm(d) : d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) + ' ' + hm(d);
+}
+function ago(ts) {
+  const s = Math.max(0, (Date.now() - ts) / 1000);
+  if (s < 60) return "à l'instant";
+  if (s < 3600) return `il y a ${Math.floor(s / 60)} min`;
+  if (s < 86400) return `il y a ${Math.floor(s / 3600)} h`;
+  return `il y a ${Math.floor(s / 86400)} j`;
+}
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+
+if (!firebaseConfig.apiKey || firebaseConfig.apiKey.startsWith('COLLE')) {
+  show('#setup');
+} else {
+  main();
+}
+
+function main() {
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getDatabase(app);
+
+  const emailOf = n => n + '@bulle-chat.app';
+  const clean = s => (s || '').trim().toLowerCase();
+  const validName = n => /^[a-z0-9_.]{3,20}$/.test(n);
+  const chatIdOf = (a, b) => [a, b].sort().join('_');
+
+  let me = null, myName = '';
+  let chats = {};            // chatId -> {with,name,last,ts}
+  let cur = null;            // conversation ouverte
+  const unsubs = [];         // écouteurs globaux
+
+  /* ---------- Connexion ---------- */
+  function authMsg(e) {
+    const c = e.code || '';
+    if (c === 'auth/email-already-in-use') return 'Ce pseudo est déjà pris.';
+    if (c === 'auth/invalid-credential' || c === 'auth/wrong-password' || c === 'auth/user-not-found') return 'Pseudo ou mot de passe incorrect.';
+    if (c === 'auth/weak-password') return 'Mot de passe trop court (6 caractères min.).';
+    if (c === 'auth/operation-not-allowed') return "Active « E-mail/Mot de passe » dans Firebase > Authentication.";
+    if (c === 'auth/network-request-failed') return 'Pas de connexion internet.';
+    return 'Erreur : ' + (e.message || c);
+  }
+  async function doAuth(reg) {
+    const n = clean($('#pseudo').value), p = $('#pass').value, err = $('#authErr');
+    err.textContent = '';
+    if (!validName(n)) return void (err.textContent = 'Pseudo : 3 à 20 caractères (lettres, chiffres, _ et .).');
+    if (p.length < 6) return void (err.textContent = 'Mot de passe : 6 caractères minimum.');
+    try {
+      if (reg) await createUserWithEmailAndPassword(auth, emailOf(n), p);
+      else await signInWithEmailAndPassword(auth, emailOf(n), p);
+    } catch (e) { err.textContent = authMsg(e); }
+  }
+  $('#btnLogin').onclick = () => doAuth(false);
+  $('#btnRegister').onclick = () => doAuth(true);
+  $('#pass').onkeydown = e => { if (e.key === 'Enter') doAuth(false); };
+  $('#btnLogout').onclick = () => { if (confirm('Se déconnecter ?')) signOut(auth); };
+
+  async function ensureProfile() {
+    try {
+      const s = await get(ref(db, `users/${me}`));
+      if (!s.exists()) await update(ref(db), { [`usernames/${myName}`]: me, [`users/${me}`]: { name: myName } });
+    } catch (e) { toast('Profil non enregistré : vérifie les règles Firebase.'); }
+  }
+
+  onAuthStateChanged(auth, async u => {
+    if (!u) {
+      teardown(); me = null;
+      show('#app', false); show('#auth');
+      return;
+    }
+    me = u.uid; myName = u.email.split('@')[0];
+    show('#auth', false); show('#app');
+    showView('list');
+    await ensureProfile();
+    startChats();
+    startShares();
+    if (localStorage.getItem('bulle_live') === '1') { $('#liveSwitch') && ($('#liveSwitch').checked = true); setLive(true); }
+  });
+
+  function teardown() {
+    unsubs.splice(0).forEach(f => { try { f(); } catch (e) {} });
+    Object.values(watchers).forEach(w => { try { w.unShare && w.unShare(); w.unLoc && w.unLoc(); } catch (e) {} });
+    for (const k in watchers) delete watchers[k];
+    for (const k in locs) delete locs[k];
+    chats = {}; shareOut = new Set();
+    closeChat();
+    stopGeo();
+    if (mapReady) drawMarkers();
+  }
+
+  /* ---------- Navigation ---------- */
+  function showView(v) {
+    show('#viewList', v === 'list'); show('#viewChat', v === 'chat'); show('#viewMap', v === 'map');
+    show('#nav', v !== 'chat');
+    $('#navList').classList.toggle('on', v === 'list'); $('#navMap').classList.toggle('on', v === 'map');
+    if (v === 'map') { initMap(); renderMapList(); setTimeout(() => { map && map.invalidateSize(); fitAll(); }, 80); }
+  }
+  $('#navList').onclick = () => showView('list');
+  $('#navMap').onclick = () => showView('map');
+  $('#toMap').onclick = () => { history.back(); setTimeout(() => showView('map'), 60); };
+  $('#backBtn').onclick = () => history.back();
+  window.addEventListener('popstate', () => { if (cur) { closeChat(); showView('list'); } });
+
+  /* ---------- Liste des discussions ---------- */
+  function startChats() {
+    unsubs.push(onValue(ref(db, `userChats/${me}`), s => { chats = s.val() || {}; renderList(); syncWatchers(); if (mapReady) renderMapList(); }));
+  }
+  function renderList() {
+    const box = $('#chatList'); box.replaceChildren();
+    const arr = Object.entries(chats).sort((a, b) => (b[1].ts || 0) - (a[1].ts || 0));
+    if (!arr.length) { box.append(el('div', { className: 'empty', textContent: "Aucune discussion pour l'instant. Appuie sur ＋ et écris le pseudo de quelqu'un." })); return; }
+    arr.forEach(([id, c]) => box.append(
+      el('div', { className: 'item', onclick: () => openChat(id, c.with, c.name) },
+        el('div', { className: 'av', textContent: (c.name || '?')[0].toUpperCase() }),
+        el('div', { className: 'mid' }, el('b', { textContent: c.name }), el('span', { className: 'last', textContent: c.last || '' })),
+        el('small', { textContent: fmtTime(c.ts) }))));
+  }
+  $('#fab').onclick = async () => {
+    const n = clean(prompt('Pseudo de la personne :'));
+    if (!n) return;
+    if (n === myName) return toast("C'est toi !");
+    try {
+      const s = await get(ref(db, `usernames/${n}`));
+      if (!s.exists()) return toast('Aucun utilisateur avec ce pseudo.');
+      openChat(chatIdOf(me, s.val()), s.val(), n);
+    } catch (e) { toast('Recherche impossible : vérifie les règles Firebase.'); }
+  };
+
+  /* ---------- Conversation ---------- */
+  function openChat(id, uid, name) {
+    closeChat();
+    cur = { id, uid, name, keys: new Set(), first: null, unsub: null };
+    $('#chatName').textContent = name;
+    $('#msgs').replaceChildren(el('button', { className: 'older', id: 'olderBtn', textContent: 'Charger les messages plus anciens', onclick: loadOlder }));
+    show('#emojiPanel', false);
+    showView('chat');
+    history.pushState({ c: 1 }, '');
+    const q = query(ref(db, `chats/${id}/messages`), limitToLast(50));
+    cur.unsub = onChildAdded(q, s => addMsg(s.key, s.val(), 'end'), () => toast("Impossible de lire les messages (règles Firebase ?)"));
+  }
+  function closeChat() {
+    if (cur && cur.unsub) { try { cur.unsub(); } catch (e) {} }
+    cur = null;
+  }
+  async function loadOlder() {
+    if (!cur || !cur.first) { if (cur) $('#olderBtn') && $('#olderBtn').remove(); return; }
+    const box = $('#msgs'), before = box.scrollHeight;
+    const s = await get(query(ref(db, `chats/${cur.id}/messages`), orderByKey(), endBefore(cur.first), limitToLast(50)));
+    const arr = []; s.forEach(c => { arr.push([c.key, c.val()]); });
+    if (arr.length < 50) { const b = $('#olderBtn'); if (b) b.textContent = 'Début de la conversation'; if (b) b.onclick = null; }
+    arr.reverse().forEach(([k, v]) => addMsg(k, v, 'start'));
+    box.scrollTop = box.scrollHeight - before;
+  }
+  function addMsg(key, m, where) {
+    if (!cur || cur.keys.has(key)) return;
+    cur.keys.add(key);
+    if (!cur.first || key < cur.first) cur.first = key;
+    const box = $('#msgs');
+    const node = bubble(m);
+    if (where === 'start') { const ob = $('#olderBtn'); ob ? ob.after(node) : box.prepend(node); }
+    else {
+      const near = box.scrollHeight - box.scrollTop - box.clientHeight < 160;
+      box.append(node);
+      if (near || m.from === me) box.scrollTop = box.scrollHeight;
+    }
+  }
+  function bubble(m) {
+    const mine = m.from === me;
+    const d = el('div', { className: 'msg ' + (mine ? 'me' : 'them') });
+    const cid = cur.id;
+    if (m.type === 'image') {
+      d.append(el('img', { className: 'thumb', src: m.thumb, onclick: () => openImage(cid, m.mediaId) }));
+    } else if (m.type === 'video') {
+      const b = el('button', { className: 'vid', textContent: `▶ Vidéo${m.size ? ' (' + m.size + ' Mo)' : ''}` });
+      b.onclick = async () => {
+        b.textContent = 'Chargement…';
+        try {
+          const s = await get(ref(db, `media/${cid}/${m.mediaId}`)); const v = s.val();
+          if (!v) { b.textContent = 'Vidéo introuvable'; return; }
+          const vid = el('video', { className: 'player', controls: true, playsInline: true, src: v.data });
+          b.replaceWith(vid); vid.play().catch(() => {});
+        } catch (e) { b.textContent = 'Erreur de chargement'; }
+      };
+      d.append(b);
+    } else if (m.type === 'loc') {
+      d.append(el('a', { className: 'locl', target: '_blank', rel: 'noopener', href: `https://www.openstreetmap.org/?mlat=${m.lat}&mlon=${m.lng}#map=17/${m.lat}/${m.lng}`, textContent: '📍 Position partagée\nOuvrir sur la carte' }));
+    } else {
+      d.append(document.createTextNode(m.text || ''));
+    }
+    d.append(el('span', { className: 'time', textContent: fmtTime(m.ts) }));
+    return d;
+  }
+  async function openImage(cid, mediaId) {
+    try {
+      const s = await get(ref(db, `media/${cid}/${mediaId}`)); const v = s.val();
+      if (!v) return toast('Image introuvable');
+      const lb = $('#lightbox'); lb.replaceChildren(el('img', { src: v.data })); lb.onclick = () => show('#lightbox', false); show('#lightbox');
+    } catch (e) { toast("Impossible d'ouvrir l'image"); }
+  }
+
+  /* ---------- Envoi ---------- */
+  async function send(msg, preview) {
+    if (!cur) return;
+    const id = cur.id, uid = cur.uid, name = cur.name;
+    const mref = push(ref(db, `chats/${id}/messages`));
+    await set(mref, { from: me, ts: serverTimestamp(), ...msg });
+    const ts = serverTimestamp();
+    await update(ref(db), {
+      [`userChats/${me}/${id}`]: { with: uid, name, last: preview, ts },
+      [`userChats/${uid}/${id}`]: { with: me, name: myName, last: preview, ts }
+    });
+  }
+  async function sendText() {
+    const t = $('#msgInput').value.trim();
+    if (!t) return;
+    $('#msgInput').value = ''; autoGrow();
+    try { await send({ type: 'text', text: t }, t.slice(0, 60)); }
+    catch (e) { $('#msgInput').value = t; toast("Message non envoyé (règles Firebase ?)"); }
+  }
+  $('#btnSend').onclick = sendText;
+  $('#msgInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey && !matchMedia('(pointer:coarse)').matches) { e.preventDefault(); sendText(); }
+  });
+  function autoGrow() { const t = $('#msgInput'); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 120) + 'px'; }
+  $('#msgInput').addEventListener('input', autoGrow);
+  $('#msgInput').addEventListener('focus', () => show('#emojiPanel', false));
+
+  $('#btnLoc').onclick = () => {
+    if (!navigator.geolocation) return toast('Localisation non disponible');
+    toast('Recherche de ta position…');
+    navigator.geolocation.getCurrentPosition(
+      p => send({ type: 'loc', lat: p.coords.latitude, lng: p.coords.longitude }, '📍 Position').catch(() => toast('Position non envoyée')),
+      () => toast('Position refusée : autorise la localisation'),
+      { enableHighAccuracy: true, timeout: 15000 });
+  };
+
+  /* Photos et vidéos */
+  $('#btnAttach').onclick = () => $('#fileInput').click();
+  $('#fileInput').onchange = async e => {
+    const f = e.target.files[0]; e.target.value = '';
+    if (!f || !cur) return;
+    try {
+      if (f.type.startsWith('image/')) {
+        toast('Envoi de la photo…');
+        const full = await imgToData(f, 1280, 0.75), thumb = await imgToData(f, 240, 0.6);
+        const mid = push(ref(db, `media/${cur.id}`)).key;
+        await set(ref(db, `media/${cur.id}/${mid}`), { mime: 'image/jpeg', data: full });
+        await send({ type: 'image', mediaId: mid, thumb }, '📷 Photo');
+      } else if (f.type.startsWith('video/')) {
+        if (f.size > 6 * 1024 * 1024) return toast('Vidéo trop lourde (6 Mo max). Choisis un extrait plus court.');
+        toast('Envoi de la vidéo…');
+        const data = await readData(f);
+        const mid = push(ref(db, `media/${cur.id}`)).key;
+        await set(ref(db, `media/${cur.id}/${mid}`), { mime: f.type, data });
+        await send({ type: 'video', mediaId: mid, size: (f.size / 1048576).toFixed(1) }, '🎬 Vidéo');
+      } else toast('Choisis une photo ou une vidéo.');
+    } catch (err) { toast("Envoi impossible : " + (err.message || 'erreur')); }
+  };
+  function readData(f) { return new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => ko(new Error('lecture')); r.readAsDataURL(f); }); }
+  function imgToData(f, max, q) {
+    return new Promise((ok, ko) => {
+      const url = URL.createObjectURL(f), img = new Image();
+      img.onload = () => {
+        const k = Math.min(1, max / Math.max(img.width, img.height));
+        const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url); ok(c.toDataURL('image/jpeg', q));
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); ko(new Error('image illisible')); };
+      img.src = url;
+    });
+  }
+
+  /* ---------- Emojis ---------- */
+  const EMOJIS = {
+    '😀': '😀 😃 😄 😁 😆 😅 😂 🤣 🥲 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🥸 🤩 🥳 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥺 😢 😭 😤 😠 😡 🤬 🤯 😳 🥵 🥶 😱 😨 😰 😥 😓 🤗 🤔 🫣 🤭 🫢 🤫 🫡 😶 😐 😑 😬 🙄 😯 😦 😧 😮 😲 🥱 😴 🤤 😪 😵 🤐 🥴 🤢 🤮 🤧 😷 🤒 🤕',
+    '👍': '👍 👎 👌 🤌 ✌️ 🤞 🫰 🤟 🤘 🤙 👈 👉 👆 👇 ☝️ ✋ 🤚 🖐️ 🖖 👋 🤝 🙏 👏 🙌 🫶 💪 🦾 ✍️ 🤳 💅 👀 👅 👄',
+    '❤️': '❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💔 ❤️‍🔥 💕 💞 💓 💗 💖 💘 💝 💯 💢 💥 💫 💦 💨 🔥 ✨ ⭐ 🌟 🎉 🎊 🎁 🏆 👑 🍀',
+    '🐶': '🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐨 🐯 🦁 🐮 🐷 🐸 🐵 🙈 🙉 🙊 🐔 🐧 🐦 🦆 🦅 🦉 🐺 🐴 🦄 🐝 🦋 🐢 🐍 🐙 🐬 🐳 🦈 🌸 🌹 🌻 🌈 ☀️ 🌙 ☁️ ⚡ ❄️ 🌊',
+    '🍕': '🍕 🍔 🍟 🌭 🌮 🍿 🍩 🍪 🎂 🍰 🍫 🍬 🍎 🍌 🍓 🍉 🍇 🥑 🍺 ☕ 🥤 🍷 🍹',
+    '⚽': '⚽ 🏀 🏈 🎮 🎧 🎤 🎬 📱 💻 📷 🚗 ✈️ 🚀 🏠 📍 💰 🎯 🎲 🎵 🎸 🏖️ 🗺️ ⏰ 🔒 💡'
+  };
+  const tabs = $('#emojiTabs'), grid = $('#emojiGrid');
+  function showCat(k) {
+    [...tabs.children].forEach(b => b.classList.toggle('on', b.dataset.k === k));
+    grid.replaceChildren(...EMOJIS[k].split(' ').map(e => el('button', { textContent: e, onclick: () => insertEmoji(e) })));
+  }
+  Object.keys(EMOJIS).forEach(k => { const b = el('button', { textContent: k, onclick: () => showCat(k) }); b.dataset.k = k; tabs.append(b); });
+  showCat('😀');
+  function insertEmoji(e) {
+    const t = $('#msgInput'), s = t.selectionStart ?? t.value.length, en = t.selectionEnd ?? s;
+    t.value = t.value.slice(0, s) + e + t.value.slice(en);
+    t.selectionStart = t.selectionEnd = s + e.length; autoGrow();
+  }
+  $('#btnEmoji').onclick = () => { const p = $('#emojiPanel'); p.classList.toggle('hidden'); if (!p.classList.contains('hidden')) document.activeElement.blur(); };
+
+  /* ---------- Carte et positions ---------- */
+  let map = null, mapReady = false, shareOut = new Set(), myPos = null, geoId = null, lastWrite = 0;
+  const locs = {}, watchers = {}, markers = {};
+
+  function initMap() {
+    if (mapReady) return;
+    if (typeof L === 'undefined') { toast('Carte indisponible (pas de connexion ?)'); return; }
+    map = L.map('map', { zoomControl: false }).setView([46.6, 2.5], 5);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
+    mapReady = true; drawMarkers();
+  }
+  function pin(letter, isMe) { return L.divIcon({ className: 'pin' + (isMe ? ' me' : ''), html: `<span><i>${letter}</i></span>`, iconSize: [34, 34], iconAnchor: [17, 34] }); }
+  function drawMarkers() {
+    if (!mapReady) return;
+    const want = {};
+    if (myPos && geoId != null) want.me = { lat: myPos[0], lng: myPos[1], name: 'Moi', me: true };
+    Object.entries(locs).forEach(([uid, v]) => { want[uid] = { lat: v.lat, lng: v.lng, name: v.name }; });
+    Object.keys(markers).forEach(k => { if (!want[k]) { map.removeLayer(markers[k]); delete markers[k]; } });
+    Object.entries(want).forEach(([k, v]) => {
+      const letter = (v.name || '?')[0].toUpperCase();
+      if (markers[k]) { markers[k].setLatLng([v.lat, v.lng]); }
+      else markers[k] = L.marker([v.lat, v.lng], { icon: pin(letter, v.me) }).addTo(map).bindPopup(v.name);
+    });
+  }
+  function fitAll() {
+    if (!mapReady) return;
+    const pts = Object.values(markers).map(m => m.getLatLng());
+    if (pts.length === 1) map.setView(pts[0], 15);
+    else if (pts.length > 1) map.fitBounds(L.latLngBounds(pts), { padding: [50, 50] });
+  }
+  $('#fitBtn').onclick = fitAll;
+
+  function startShares() {
+    unsubs.push(onValue(ref(db, `shares/${me}`), s => { shareOut = new Set(Object.keys(s.val() || {})); if (mapReady) renderMapList(); }, () => {}));
+  }
+  function syncWatchers() {
+    Object.values(chats).forEach(c => {
+      const uid = c.with;
+      if (watchers[uid]) { watchers[uid].name = c.name; return; }
+      const w = watchers[uid] = { name: c.name, unLoc: null };
+      w.unShare = onValue(ref(db, `shares/${uid}/${me}`), s => {
+        if (s.val() === true) {
+          if (!w.unLoc) w.unLoc = onValue(ref(db, `locations/${uid}`), ls => {
+            const v = ls.val();
+            if (v && typeof v.lat === 'number') locs[uid] = { ...v, name: w.name }; else delete locs[uid];
+            renderMapList(); drawMarkers();
+          }, () => {});
+        } else {
+          if (w.unLoc) { w.unLoc(); w.unLoc = null; }
+          delete locs[uid]; renderMapList(); drawMarkers();
+        }
+      }, () => {});
+    });
+  }
+  function renderMapList() {
+    const box = $('#mapPanel'); if (!box) return;
+    box.replaceChildren();
+    const live = el('input', { type: 'checkbox', className: 'sw', id: 'liveSwitch', checked: geoId != null });
+    live.onchange = () => setLive(live.checked);
+    box.append(el('div', { className: 'sec', textContent: 'Ma position' }),
+      el('div', { className: 'row' }, el('div', { className: 'mid' }, el('b', { textContent: 'Partager ma position en direct' }), el('small', { textContent: "Mise à jour tant que l'appli est ouverte" })), live));
+
+    const contacts = Object.values(chats);
+    box.append(el('div', { className: 'sec', textContent: 'Qui peut me voir' }));
+    if (!contacts.length) box.append(el('div', { className: 'empty', textContent: 'Écris à quelqu\'un pour pouvoir partager ta position avec lui.' }));
+    contacts.forEach(c => {
+      const cb = el('input', { type: 'checkbox', className: 'sw', checked: shareOut.has(c.with) });
+      cb.onchange = () => {
+        const r = ref(db, `shares/${me}/${c.with}`);
+        (cb.checked ? set(r, true) : remove(r)).catch(() => { toast('Action impossible (règles Firebase ?)'); cb.checked = !cb.checked; });
+      };
+      box.append(el('div', { className: 'row' }, el('div', { className: 'av', textContent: (c.name || '?')[0].toUpperCase() }), el('div', { className: 'mid' }, el('b', { textContent: c.name })), cb));
+    });
+
+    box.append(el('div', { className: 'sec', textContent: 'Position des autres' }));
+    const list = Object.entries(locs);
+    if (!list.length) box.append(el('div', { className: 'empty', textContent: "Personne ne partage sa position avec toi pour l'instant." }));
+    list.forEach(([uid, v]) => box.append(
+      el('div', { className: 'row', onclick: () => { if (markers[uid]) { map.setView(markers[uid].getLatLng(), 16); markers[uid].openPopup(); } } },
+        el('div', { className: 'av', textContent: (v.name || '?')[0].toUpperCase() }),
+        el('div', { className: 'mid' }, el('b', { textContent: v.name }), el('small', { textContent: v.ts ? 'Mis à jour ' + ago(v.ts) : '' })))));
+  }
+  setInterval(() => { if (mapReady && !$('#viewMap').classList.contains('hidden')) renderMapList(); }, 30000);
+
+  function setLive(on) {
+    localStorage.setItem('bulle_live', on ? '1' : '0');
+    if (on) {
+      if (geoId != null) return;
+      if (!navigator.geolocation) { toast('Localisation non disponible'); return; }
+      geoId = navigator.geolocation.watchPosition(p => {
+        myPos = [p.coords.latitude, p.coords.longitude]; drawMarkers();
+        const now = Date.now();
+        if (me && now - lastWrite > 8000) {
+          lastWrite = now;
+          set(ref(db, `locations/${me}`), { lat: p.coords.latitude, lng: p.coords.longitude, acc: Math.round(p.coords.accuracy), ts: serverTimestamp() }).catch(() => {});
+        }
+      }, () => {
+        toast('Position refusée : autorise la localisation pour Bulle.');
+        stopGeo(); localStorage.setItem('bulle_live', '0');
+        const sw = $('#liveSwitch'); if (sw) sw.checked = false;
+      }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 });
+    } else {
+      stopGeo();
+    }
+  }
+  function stopGeo() {
+    if (geoId != null && navigator.geolocation) navigator.geolocation.clearWatch(geoId);
+    const had = geoId != null; geoId = null; myPos = null;
+    if (had && me) remove(ref(db, `locations/${me}`)).catch(() => {});
+    if (mapReady) drawMarkers();
+  }
+}
+</script>
+</body>
+</html>
